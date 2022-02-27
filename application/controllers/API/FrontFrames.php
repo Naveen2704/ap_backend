@@ -614,6 +614,31 @@ class FrontFrames extends REST_Controller {
         }
     }
 
+    public function invPackSearch_get($search) {
+        $investigations = $this->DefaultModel->getAllRecords('investigations', array('investigation_name LIKE ' => '%' . $search . '%'));
+        if(count($investigations) > 0){
+            $i = 0;
+            foreach($investigations as $value){
+                $data['search'][$i]['name'] = $value->investigation_name;
+                $data['search'][$i]['id'] = $value->investigation_id;
+                $data['search'][$i]['type'] = "Investigation";
+                $i++;
+            }
+        }
+        
+        $packages = $this->DefaultModel->getAllRecords('packages', array('package_name LIKE ' => '%' . $search . '%'));
+        if(count($packages) > 0){
+            $i = 0;
+            foreach($packages as $value){
+                $data['search'][$i]['name'] = $value->package_name;
+                $data['search'][$i]['id'] = $value->package_id;
+                $data['search'][$i]['type'] = "Package";
+                $i++;
+            }
+        }
+        $this->response(array('code'=>'200','message'=>'Success','result'=>$data));
+    }
+
     // Get Investigations 
     public function GetInvestigations_get($category = ''){
         if($popular != "") {
@@ -653,6 +678,19 @@ class FrontFrames extends REST_Controller {
         }
     }
 
+    // Investigation Info
+    public function invInfo_get($investigation_id) {
+        $check = $this->DefaultModel->getSingleRecord('investigations', array('investigation_id'=>$investigation_id));
+        if(!is_null($check)) {
+            $check->image = base_url('uploads/investigations/'. $check->image);
+            $this->response(array('code'=>'200','message'=>'Success','result'=>$check));
+        }
+        else {
+            $this->response(array('code'=>'201','message'=>'Error Found'));
+        }
+        
+    }
+
     // Get Popular Investigations 
     public function popularInvestigations_post(){
         extract($_POST);
@@ -682,183 +720,6 @@ class FrontFrames extends REST_Controller {
         else{
             $data['investigations'] = [];
             $this->response(array('code'=>'201','message'=>'Error Occured','result'=>$data));
-        }
-    }
-
-    // Products
-    public function products_get($cat_id){
-        if($cat_id == "all"){
-            $cond = "";
-        }
-        else{
-            $cond = " where category='".$cat_id."'";
-        }
-        $check = $this->db->query("select * from products ".$cond." order by product_id DESC")->result();
-        if(count($check) > 0){
-            $i = 0;
-            foreach($check as $value){
-                $catInfo = getCategoryInfo($value->category);
-                $info = $this->DefaultModel->getSingleRecord("product_stock", array('product_id'=>$value->product_id));
-                $colors = getColors($value->product_id);
-                $j = 0;
-                foreach($colors as $val){
-                    $data['productList'][$i]['colors'][$j] = $val->color;
-                    $j++;
-                }
-                $data['productList'][$i]['product_id'] = $value->product_id;
-                $data['productList'][$i]['product_name'] = $value->product_name;
-                $data['productList'][$i]['category'] = $catInfo->category_name;
-                $data['productList'][$i]['category_id'] = $value->category;
-                $data['productList'][$i]['artist_id'] = $value->artist_id;
-                $data['productList'][$i]['price'] = $info->price;
-                $data['productList'][$i]['sp_price'] = $info->sp_price;
-                $data['productList'][$i]['product_image'] = base_url('uploads/products/'.$value->featured_image);
-                $i++;
-            }
-            $this->response(array('code'=>'200','message'=>'Success','result'=>$data));
-        }
-        else{
-            $data['productList'] = [];
-            $this->response(array('code'=>'201','message'=>'Error','result'=>$data));
-        }
-    }
-    
-    //Single Products
-    public function singlePro_get($pro_id){
-        $value = $this->db->query("select * from products where product_id='".$pro_id."'")->row();
-        // $goldrate = $this->db->query("select * from goldrate order by goldrate_id DESC")->row();
-        // if(count($value) > 0){
-            $catInfo = getCategoryInfo($value->category);
-            $colors = getColors($value->product_id);
-            $sizes = getSizes($value->product_id);
-            $info = $this->DefaultModel->getSingleRecord("product_stock", array('product_id'=>$value->product_id));
-            $art = $this->DefaultModel->getSingleRecord("artists", array('artist_id'=>$value->artist_id));
-			$data['productList'][0]['product_id'] = $value->product_id;
-			$data['productList'][0]['product_name'] = $value->product_name;
-			$data['productList'][0]['description'] = $value->description;
-			$data['productList'][0]['category'] = $catInfo->category_name;
-			$data['productList'][0]['category_id'] = $value->category;
-			$data['productList'][0]['sku_code'] = $info->sku_code;
-            $j = 0;
-            foreach($colors as $val){
-                $data['productList'][0]['available_colors'][$j] = $val->color;
-                $j++;
-            }
-            $j = 0;
-            foreach($sizes as $val1){
-                $data['productList'][0]['available_sizes'][$j] = $val1->product_size;
-                $j++;
-            }
-            $add_images = explode(",", $info->product_images);
-			// $data['productList'][0]['available_colors'] = $value->available_colors;
-			$data['productList'][0]['stock_id'] = $info->product_stock_id;
-			$data['productList'][0]['price'] = $info->price;
-			$data['productList'][0]['sp_price'] = $info->sp_price;
-			$data['productList'][0]['size'] = $info->product_size;
-			$data['productList'][0]['artist_id'] = $art->artist_id;
-			$data['productList'][0]['artist_name'] = $art->artist_name;
-			$data['productList'][0]['art_description'] = $art->description;
-			$data['productList'][0]['artist_image'] = base_url('uploads/artists/'.$art->artist_image);
-			$data['productList'][0]['product_image'] = base_url('uploads/products/'.$value->featured_image);
-			$data['productList'][0]['additional_images'] = $add_images;
-            $this->response(array('code'=>'200','message'=>'Success','result'=>$data));
-        // }
-        // else{
-        //     $data['productList'] = [];
-        //     $this->response(array('code'=>'201','message'=>'Error','result'=>$data));
-        // }
-    }
-
-    // get Gold rate updated
-    public function colorImages_get($product_id, $color){
-        $proInfo = $this->db->query("select * from products where product_id='".$product_id."'")->row();
-        $info = $this->db->query("select * from product_stock where product_id='".$product_id."' and color='#".$color."' group by color")->row();
-        $data['list'][0]['featured_image'] = base_url('uploads/products/'.$proInfo->featured_image);
-        $data['list'][0]['additional_images'] = explode(",", $info->product_images);
-        $this->response(array('code'=>'200','message'=>'success','result'=>$data));
-    }
-
-    // get SChemes List
-    public function getSchemes_get(){
-        $schemesInfo = $this->db->query("select * from schemes order by scheme_id DESC")->result();
-        if(count($schemesInfo) > 0){
-            $i = 0;
-            foreach($schemesInfo as $value){
-                $data['schemes'][$i]['scheme_id'] = $value->scheme_id;
-                $data['schemes'][$i]['scheme_name'] = $value->scheme_name;
-                $data['schemes'][$i]['description'] = $value->description;
-                $data['schemes'][$i]['status'] = $value->status;
-                $data['schemes'][$i]['scheme_months'] = $value->scheme_months;
-                $data['schemes'][$i]['amount'] = $value->scheme_amount;
-                $data['schemes'][$i]['created_date_time'] = date("Y-m-d h:i A", strtotime($value->created_date_time));
-                $i++;
-            }
-            $this->response(array('code'=>'200','message'=>'success','result'=>$data));
-        }
-        else{
-            $this->response(array('code'=>'201','message'=>'error'));
-        }
-    }
-
-    // customer schemes 
-    public function getCustomerSchemes_get($customer_id){
-        $check = $this->DefaultModel->getAllRecords('customer_schemes', array('customer_id'=>$customer_id));
-        if(count($check) > 0){
-            $i = 0;
-            foreach($check as $value){
-                $schemeInfo = $this->DefaultModel->getSingleRecord('schemes', array('scheme_id'=>$value->scheme_id));
-                $paidInfo = $this->db->query("select count(*) as count from scheme_transactions where customer_id='".$customer_id."' and scheme_id='".$value->scheme_id."'")->row();
-                if(count($paidInfo) > 0){
-                    $paid = $paidInfo->count;
-                }
-                else{
-                    $paid = 0;
-                }
-                $data['schemesInfo'][$i]['scheme_name'] = $schemeInfo->scheme_name;
-                $data['schemesInfo'][$i]['scheme_months'] = $schemeInfo->scheme_months;
-                $data['schemesInfo'][$i]['scheme_id'] = $schemeInfo->scheme_id;
-                $data['schemesInfo'][$i]['amount'] = $schemeInfo->scheme_amount;
-                $data['schemesInfo'][$i]['description'] = $schemeInfo->description;
-                $data['schemesInfo'][$i]['status'] = $schemeInfo->status;
-                $data['schemesInfo'][$i]['emispaid'] = $paid;
-                $i++;
-            }
-            $this->response(array('code'=>'200','message'=>'Success','result'=>$data));
-        }
-        else{
-            $this->response(array('code'=>'201','message'=>'Error'));
-        }
-    }
-
-    // get scheme info
-    public function getSchemeInfo_get($scheme_id){
-        $schemesInfo = $this->db->query("select * from schemes where scheme_id='".$scheme_id."'")->row();
-        if(count($schemesInfo) > 0){
-            $transactionsInfo = $this->db->query("select count(*) as cnt from scheme_transactions where scheme_id='".$scheme_id."' group by customer_id")->result();
-            $active = 0;$closed = 0;
-            if(count($transactionsInfo) > 0){
-                foreach($transactionsInfo as $val){
-                    if($val->cnt >= $schemesInfo->scheme_months){
-                        $closed += 1;
-                    }
-                    else{
-                        $active += 1;
-                    }
-                }
-            }
-            $data['schemes']['scheme_id'] = $schemesInfo->scheme_id;
-            $data['schemes']['scheme_name'] = $schemesInfo->scheme_name;
-            $data['schemes']['description'] = $schemesInfo->description;
-            $data['schemes']['status'] = $schemesInfo->status;
-            $data['schemes']['scheme_months'] = $schemesInfo->scheme_months;
-            $data['schemes']['amount'] = $schemesInfo->scheme_amount;
-            $data['schemes']['active'] = $active;
-            $data['schemes']['closed'] = $closed;
-            $data['schemes']['created_date_time'] = date("Y-m-d h:i A", strtotime($schemesInfo->created_date_time));
-            $this->response(array('code'=>'200','message'=>'success','result'=>$data));
-        }
-        else{
-            $this->response(array('code'=>'201','message'=>'error'));
         }
     }
 
@@ -994,4 +855,4 @@ class FrontFrames extends REST_Controller {
     }
     
 }
-?> 
+?>
